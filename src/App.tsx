@@ -370,6 +370,7 @@ export default function App() {
       "Bandeira",
       "Valor Pago",
       "Troco",
+      "Autorização",
     ];
     worksheetData.push(headers);
 
@@ -408,6 +409,7 @@ export default function App() {
         row.push(finalizadora ? finalizadora.bandeira || "" : "");
         row.push(finalizadora ? finalizadora.valor : "");
         row.push(finalizadora ? finalizadora.troco : "");
+        row.push(finalizadora ? finalizadora.autorizacao || "" : "");
 
         worksheetData.push(row);
       }
