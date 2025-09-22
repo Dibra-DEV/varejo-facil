@@ -19,6 +19,7 @@ interface CupomFinalizadora {
   bandeira: string | null;
   valor: number | null;
   troco: number | null;
+  autorizacao: string | null;
 }
 
 interface Cupom {
@@ -184,6 +185,7 @@ async function getVarejoFacilData(params: QueryParams): Promise<ApiResponse> {
           bandeira: bandeira,
           valor: valor,
           troco: getFloat(finNode, "TROCO"),
+          autorizacao: getText(finNode, "AUTORIZACAO"),
         });
       }
     }
@@ -775,6 +777,9 @@ export default function App() {
                                           <th className="p-2 text-right">
                                             Troco
                                           </th>
+                                          <th className="p-2 text-right">
+                                            Autorização
+                                          </th>
                                         </tr>
                                       </thead>
                                       <tbody>
@@ -792,6 +797,11 @@ export default function App() {
                                             </td>
                                             <td className="p-2 text-right">
                                               {formatCurrency(fin.troco)}
+                                            </td>
+                                            <td className="p-2 text-right">
+                                              {fin.bandeira
+                                                ? fin.autorizacao || "-"
+                                                : "-"}
                                             </td>
                                           </tr>
                                         ))}
