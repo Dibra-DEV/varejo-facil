@@ -348,6 +348,13 @@ export default function App() {
     return { filteredCupons, filteredResumos };
   }, [cupons, resumos, dateFilter]);
 
+  const totalValorCupons = useMemo(() => {
+    return filteredData.filteredCupons.reduce(
+      (acc, cupom) => acc + (cupom.vlrtot || 0),
+      0
+    );
+  }, [filteredData.filteredCupons]);
+
   const handleExport = () => {
     const { filteredCupons } = filteredData;
     const worksheetData = [];
@@ -818,6 +825,19 @@ export default function App() {
                       </Fragment>
                     ))}
                   </tbody>
+                  {filteredData.filteredCupons.length > 0 && (
+                    <tfoot className="bg-gray-200 font-bold border-t-2 border-gray-300">
+                      <tr>
+                        <td colSpan={3} className="p-3 text-right">
+                          Soma Valor Total:
+                        </td>
+                        <td className="p-3 font-mono text-right">
+                          {formatCurrency(totalValorCupons)}
+                        </td>
+                        <td colSpan={4} className="p-3"></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
                 {filteredData.filteredCupons.length === 0 && (
                   <p className="text-center text-gray-500 py-10">
