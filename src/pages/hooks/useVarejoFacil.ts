@@ -63,7 +63,6 @@ export function useVarejoFacil() {
       const start = parse(params.dataInicial);
       const end = parse(params.dataFinal);
 
-      // Se parsing falhar ou range curto, usa a chamada simples
       if (!start || !end || start > end) {
         const { cupons: resultCupons, resumos: resultResumos }: ApiResponse =
           await getVarejoFacilData(params);
@@ -86,14 +85,9 @@ export function useVarejoFacil() {
       const cuponsMap = new Map<string, Cupom>();
       const resumosAll: CupomResumo[] = [];
 
-      // Itera dia a dia: pula segundas-feiras e acumula resultados
+      // Itera dia a dia sem pular
       let day = new Date(start);
       while (day <= end) {
-        if (day.getDay() === 1) {
-          // Monday
-          day = addDays(day, 1);
-          continue;
-        }
         try {
           const resp = await getVarejoFacilData({
             dataInicial: format(day),
@@ -172,12 +166,12 @@ export function useVarejoFacil() {
       const cuponsMap = new Map<string, Cupom>();
       const resumosAll: CupomResumo[] = [];
 
-      // calcular total de dias a processar (exclui segundas-feiras)
+      // calcular total de dias a processar
       let total = 0;
       {
         let tmp = new Date(start);
         while (tmp <= end) {
-          if (tmp.getDay() !== 1) total++;
+          total++;
           tmp = new Date(tmp.getFullYear(), tmp.getMonth(), tmp.getDate() + 1);
         }
       }
@@ -185,11 +179,6 @@ export function useVarejoFacil() {
 
       let day = new Date(start);
       while (day <= end) {
-        if (day.getDay() === 1) {
-          // Monday - skip
-          day = addDays(day, 1);
-          continue;
-        }
         try {
           const resp = await getVarejoFacilData({
             dataInicial: format(day),
