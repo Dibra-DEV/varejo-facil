@@ -14,7 +14,7 @@ export type ExpandedDetails = {
 
 export const INITIAL_QUERY_PARAMS: QueryParams = {
   dataInicial: "01.09.2025",
-  dataFinal: "02.09.2025",
+  dataFinal: "01.09.2025",
   estabelecimento: "1",
 };
 
@@ -30,21 +30,205 @@ export function useVarejoFacil() {
   const [dateFilter, setDateFilter] = useState<string>("");
   const [queryParams, setQueryParams] =
     useState<QueryParams>(INITIAL_QUERY_PARAMS);
+  const [progress, setProgress] = useState<{ current: number; total: number }>({
+    current: 0,
+    total: 0,
+  });
 
   const fetchData = useCallback(async (params: QueryParams) => {
     setLoading(true);
     setError(null);
     setExpandedDetails({ chave: null, type: null });
     try {
-      const { cupons: resultCupons, resumos: resultResumos }: ApiResponse =
-        await getVarejoFacilData(params);
+      const parse = (dateStr: string) => {
+        const parts = dateStr?.split(".");
+        if (!parts || parts.length !== 3) return null;
+        const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
+        if (!yyyy || !mm || !dd) return null;
+        const d = new Date(yyyy, mm - 1, dd);
+        return Number.isNaN(d.getTime()) ? null : d;
+      };
+      const format = (d: Date) => {
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        return `${dd}.${mm}.${yyyy}`;
+      };
+      const addDays = (d: Date, days: number) => {
+        const nd = new Date(d);
+        nd.setDate(nd.getDate() + days);
+        return nd;
+      };
+
+      const start = parse(params.dataInicial);
+      const end = parse(params.dataFinal);
+
+      // Se parsing falhar ou range curto, usa a chamada simples
+      if (!start || !end || start > end) {
+        const { cupons: resultCupons, resumos: resultResumos }: ApiResponse =
+          await getVarejoFacilData(params);
+        setCupons(resultCupons);
+        setResumos(resultResumos);
+        return;
+      }
+
+      const diffMs = end.getTime() - start.getTime();
+      const rangeDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+
+      if (rangeDays <= 7) {
+        const { cupons: resultCupons, resumos: resultResumos }: ApiResponse =
+          await getVarejoFacilData(params);
+        setCupons(resultCupons);
+        setResumos(resultResumos);
+        return;
+      }
+
+      const cuponsMap = new Map<string, Cupom>();
+      const resumosAll: CupomResumo[] = [];
+
+      // Itera dia a dia: pula segundas-feiras e acumula resultados
+      let day = new Date(start);
+      while (day <= end) {
+        if (day.getDay() === 1) {
+          // Monday
+          day = addDays(day, 1);
+          continue;
+        }
+        try {
+          const resp = await getVarejoFacilData({
+            dataInicial: format(day),
+            dataFinal: format(day),
+            estabelecimento: params.estabelecimento,
+          });
+          for (const c of resp.cupons) {
+            if (c.chcfe && !cuponsMap.has(c.chcfe)) {
+              cuponsMap.set(c.chcfe, c);
+            }
+          }
+          resumosAll.push(...resp.resumos);
+        } catch (_ignore) {
+          // ignora erro desse dia e segue
+        }
+        day = addDays(day, 1);
+      }
+
+      const resultCupons = Array.from(cuponsMap.values()).sort((a, b) => {
+        const aNum = a.coo ? parseInt(a.coo, 10) : Number.POSITIVE_INFINITY;
+        const bNum = b.coo ? parseInt(b.coo, 10) : Number.POSITIVE_INFINITY;
+        if (Number.isNaN(aNum) || Number.isNaN(bNum)) {
+          return (a.coo || "").localeCompare(b.coo || "");
+        }
+        return aNum - bNum;
+      });
+
       setCupons(resultCupons);
-      setResumos(resultResumos);
+      setResumos(resumosAll);
     } catch (err) {
       const msg =
         err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
       setError(`Não foi possível carregar os dados. Detalhe: ${msg}`);
     } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchDataChunked = useCallback(async (params: QueryParams) => {
+    setLoading(true);
+    setError(null);
+    setExpandedDetails({ chave: null, type: null });
+    setProgress({ current: 0, total: 0 });
+    try {
+      const parse = (dateStr: string) => {
+        const parts = dateStr?.split(".");
+        if (!parts || parts.length !== 3) return null;
+        const [dd, mm, yyyy] = parts.map((p) => parseInt(p, 10));
+        if (!yyyy || !mm || !dd) return null;
+        const d = new Date(yyyy, mm - 1, dd);
+        return Number.isNaN(d.getTime()) ? null : d;
+      };
+      const format = (d: Date) => {
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        return `${dd}.${mm}.${yyyy}`;
+      };
+      const addDays = (d: Date, days: number) => {
+        const nd = new Date(d);
+        nd.setDate(nd.getDate() + days);
+        return nd;
+      };
+
+      const start = parse(params.dataInicial);
+      const end = parse(params.dataFinal);
+      if (!start || !end || start > end) {
+        const { cupons: resultCupons, resumos: resultResumos }: ApiResponse =
+          await getVarejoFacilData(params);
+        setCupons(resultCupons);
+        setResumos(resultResumos);
+        setProgress({ current: 1, total: 1 });
+        return;
+      }
+
+      const cuponsMap = new Map<string, Cupom>();
+      const resumosAll: CupomResumo[] = [];
+
+      // calcular total de dias a processar (exclui segundas-feiras)
+      let total = 0;
+      {
+        let tmp = new Date(start);
+        while (tmp <= end) {
+          if (tmp.getDay() !== 1) total++;
+          tmp = new Date(tmp.getFullYear(), tmp.getMonth(), tmp.getDate() + 1);
+        }
+      }
+      setProgress({ current: 0, total });
+
+      let day = new Date(start);
+      while (day <= end) {
+        if (day.getDay() === 1) {
+          // Monday - skip
+          day = addDays(day, 1);
+          continue;
+        }
+        try {
+          const resp = await getVarejoFacilData({
+            dataInicial: format(day),
+            dataFinal: format(day),
+            estabelecimento: params.estabelecimento,
+          });
+          for (const c of resp.cupons) {
+            if (c.chcfe && !cuponsMap.has(c.chcfe)) {
+              cuponsMap.set(c.chcfe, c);
+            }
+          }
+          resumosAll.push(...resp.resumos);
+        } catch (_ignore) {
+          // ignore 500 or other errors for that day
+        }
+        setProgress((p) => ({
+          current: Math.min(p.current + 1, p.total),
+          total: p.total,
+        }));
+        day = addDays(day, 1);
+      }
+
+      const resultCupons = Array.from(cuponsMap.values()).sort((a, b) => {
+        const aNum = a.coo ? parseInt(a.coo, 10) : Number.POSITIVE_INFINITY;
+        const bNum = b.coo ? parseInt(b.coo, 10) : Number.POSITIVE_INFINITY;
+        if (Number.isNaN(aNum) || Number.isNaN(bNum)) {
+          return (a.coo || "").localeCompare(b.coo || "");
+        }
+        return aNum - bNum;
+      });
+
+      setCupons(resultCupons);
+      setResumos(resumosAll);
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Ocorreu um erro desconhecido.";
+      setError(`Não foi possível carregar os dados. Detalhe: ${msg}`);
+    } finally {
+      setProgress((p) => ({ current: p.total, total: p.total }));
       setLoading(false);
     }
   }, []);
@@ -128,6 +312,7 @@ export function useVarejoFacil() {
       queryParams,
       filteredData,
       totalValorCupons,
+      progress,
     },
     actions: {
       setDateFilter,
@@ -138,6 +323,7 @@ export function useVarejoFacil() {
       handleReload,
       handleToggleDetails,
       fetchData,
+      fetchDataChunked,
     },
   } as const;
 }

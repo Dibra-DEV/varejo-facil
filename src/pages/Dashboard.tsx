@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useVarejoFacil } from "./hooks/useVarejoFacil";
 import { formatCurrency, formatDate } from "../utils/formatters";
 import * as XLSX from "xlsx";
@@ -13,16 +13,50 @@ export default function Dashboard() {
       queryParams,
       filteredData,
       totalValorCupons,
+      progress,
     },
     actions: {
       setDateFilter,
       handleInputChange,
-      handleSearch,
       handleClearDates,
       handleReload,
       handleToggleDetails,
+      fetchDataChunked,
     },
   } = useVarejoFacil();
+
+  const [sortState, setSortState] = useState<{
+    key: "data" | "coo" | null;
+    dir: "asc" | "desc";
+  }>({ key: null, dir: "asc" });
+
+  const handleSort = (key: "data" | "coo") => {
+    setSortState((prev) => {
+      if (prev.key === key) {
+        return { key, dir: prev.dir === "asc" ? "desc" : "asc" };
+      }
+      return { key, dir: "asc" };
+    });
+  };
+
+  const sortedCupons = useMemo(() => {
+    const arr = [...filteredData.filteredCupons];
+    if (!sortState.key) return arr;
+    const dir = sortState.dir === "asc" ? 1 : -1;
+    if (sortState.key === "data") {
+      return arr.sort((a, b) => {
+        const aNum = a.rzdata ? parseInt(a.rzdata, 10) : 0;
+        const bNum = b.rzdata ? parseInt(b.rzdata, 10) : 0;
+        return (aNum - bNum) * dir;
+      });
+    }
+    // coo
+    return arr.sort((a, b) => {
+      const aNum = a.coo ? parseInt(a.coo, 10) : 0;
+      const bNum = b.coo ? parseInt(b.coo, 10) : 0;
+      return (aNum - bNum) * dir;
+    });
+  }, [filteredData.filteredCupons, sortState]);
 
   const handleExport = () => {
     const { filteredCupons } = filteredData;
@@ -126,10 +160,7 @@ export default function Dashboard() {
         </header>
 
         <div className="bg-white p-4 rounded-sm border border-gray-200 mb-6 shadow-sm">
-          <form
-            onSubmit={handleSearch}
-            className="flex flex-wrap items-end gap-4"
-          >
+          <form className="flex flex-wrap items-end gap-4">
             <div className="flex-grow min-w-[150px]">
               <label
                 htmlFor="dataInicial"
@@ -183,19 +214,36 @@ export default function Dashboard() {
               Limpar
             </button>
             <button
-              type="submit"
+              type="button"
               disabled={loading}
+              onClick={() => fetchDataChunked(queryParams)}
               className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-2 px-6 rounded-sm"
+              title="Buscar dia a dia (pula segundas-feiras)"
             >
-              {loading ? "Buscando..." : "Buscar"}
+              {loading ? "Buscando..." : "Buscar (chunk)"}
             </button>
           </form>
         </div>
 
         {loading && (
-          <p className="text-center py-10 text-xl text-gray-600">
-            Carregando dados...
-          </p>
+          <div className="bg-white rounded-sm border border-gray-200 p-4 mb-6 shadow-sm">
+            <div className="w-full bg-gray-200 h-2 rounded-sm">
+              <div
+                className="bg-blue-600 h-2 rounded-sm"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.round(
+                      (progress.current / Math.max(1, progress.total)) * 100
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
+            <div className="mt-2 text-sm text-gray-600 font-mono">
+              {progress.current}/{progress.total} dias
+            </div>
+          </div>
         )}
         {error && (
           <p className="text-center text-red-700 bg-red-100 p-4 rounded-sm py-10 border border-red-200">
@@ -312,8 +360,44 @@ export default function Dashboard() {
                       <th className="p-3 font-semibold text-gray-600">
                         Unidade
                       </th>
-                      <th className="p-3 font-semibold text-gray-600">COO</th>
-                      <th className="p-3 font-semibold text-gray-600">Data</th>
+                      <th
+                        className="p-3 font-semibold text-gray-600 cursor-pointer select-none"
+                        onClick={() => handleSort("coo")}
+                        aria-sort={
+                          sortState.key === "coo"
+                            ? sortState.dir === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                        title="Ordenar por COO"
+                      >
+                        COO
+                        {sortState.key === "coo"
+                          ? sortState.dir === "asc"
+                            ? " ▲"
+                            : " ▼"
+                          : ""}
+                      </th>
+                      <th
+                        className="p-3 font-semibold text-gray-600 cursor-pointer select-none"
+                        onClick={() => handleSort("data")}
+                        aria-sort={
+                          sortState.key === "data"
+                            ? sortState.dir === "asc"
+                              ? "ascending"
+                              : "descending"
+                            : "none"
+                        }
+                        title="Ordenar por Data"
+                      >
+                        Data
+                        {sortState.key === "data"
+                          ? sortState.dir === "asc"
+                            ? " ▲"
+                            : " ▼"
+                          : ""}
+                      </th>
                       <th className="p-3 font-semibold text-gray-600 text-right">
                         Valor Total
                       </th>
@@ -332,7 +416,7 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredData.filteredCupons.map((cupom) => (
+                    {sortedCupons.map((cupom) => (
                       <Fragment key={cupom.chcfe}>
                         <tr className="border-b border-gray-200">
                           <td className="p-3">{cupom.unidade}</td>
