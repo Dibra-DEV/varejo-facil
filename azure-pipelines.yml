@@ -20,7 +20,6 @@ steps:
       npm install -g pm2
     displayName: '2. Build do projeto e Instalar PM2'
 
-  # Etapa 3: Cópia robusta sem comentários CMD
   - script: |
       echo "Copiando build para pasta de deploy (C:\deploy\varejo-facil)"
       
@@ -37,10 +36,8 @@ steps:
       pm2 save --force
     displayName: '4. Rodar app com PM2'
 
-  # Etapa 5 (Diagnóstico): Força a listagem de arquivos após o build (em caso de falha da Etapa 3)
   - script: |
       echo "Conteúdo do diretório de build (Pós-Build):"
       dir /b
     displayName: '5. VERIFICAR PASTA DE BUILD'
-    # Esta é a chave: permite que esta etapa execute mesmo se a Etapa 3 falhar
     continueOnError: true
