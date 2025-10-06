@@ -1,0 +1,31 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  name: vm-windows
+
+steps:
+  - task: NodeTool@0
+    inputs:
+      versionSpec: '20.x'
+    displayName: 'Instalar Node.js'
+
+  - script: |
+      npm install
+      npm run build
+    displayName: 'Build do projeto'
+
+  - script: |
+      echo "Copiando build para pasta de deploy"
+      if not exist "C:\deploy\varejo-facil" mkdir "C:\deploy\varejo-facil"
+      xcopy dist C:\deploy\varejo-facil /E /Y
+    displayName: 'Copiar build para VM'
+
+  - script: |
+      echo "Reiniciando app com PM2"
+      pm2 delete varejo-facil || exit 0
+      pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil
+      pm2 save
+    displayName: 'Rodar app com PM2'
