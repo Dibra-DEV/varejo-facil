@@ -13,13 +13,16 @@ steps:
     displayName: '1. Instalar Node.js'
 
   - script: |
+      echo "Instalando dependências e buildando projeto..."
       npm install
       npm run build
+      echo "Instalando PM2 globalmente..."
       npm install -g pm2
     displayName: '2. Build do projeto e Instalar PM2'
 
   - task: CopyFiles@2
     inputs:
+      # O caminho foi corrigido para o diretório de trabalho do agente
       sourceFolder: '$(System.DefaultWorkingDirectory)/dist' 
       contents: '**'
       targetFolder: 'C:\deploy\varejo-facil'
@@ -29,8 +32,16 @@ steps:
 
   - script: |
       echo "Reiniciando app com PM2"
+      
+      # Tenta apagar o app anterior silenciosamente
       pm2 delete varejo-facil --silent || true 
       
-      pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
-      pm2 save
-    displayName: '4. Rodar app com PM2'
+      # Inicia o app React/Vite (SPA)
+      # CORREÇÃO: Usamos 'start' ou 'serve' com '&' para rodar em background no CMD
+      # OU usamos 'start' e gerenciamos o PATH se 'pm2 serve' der problemas.
+      # Vamos usar 'start' com um comando Shell direto, que é mais compatível com o ambiente CMD/Windows.
+      pm2 start "cmd /c pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa" --name varejo-facil-service --interpreter none
+      
+      # Salva a configuração
+      pm2 save --force
+    displayName: '4. Rodar app com PM2 (Corrigido)'
