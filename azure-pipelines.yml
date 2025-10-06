@@ -20,37 +20,23 @@ steps:
       npm install -g pm2
     displayName: '2. Build do projeto e Instalar PM2'
 
-  # NOVA ETAPA: Diagnóstico para descobrir o nome real da pasta de build.
+  # Etapa 3: Cópia robusta usando o diretório atual (.\dist)
   - script: |
-      echo "Conteúdo do Diretório de Trabalho Padrão ($(System.DefaultWorkingDirectory)): "
-      # O comando 'dir /b' no Windows lista apenas arquivos e pastas
-      dir /b
-    displayName: '3. DIAGNÓSTICO: Listar Arquivos pós-Build'
-
-  # Etapa 4: Copia a pasta de Build (assumindo 'dist' por enquanto) para o Staging
-  - task: CopyFiles@2
-    inputs:
-      # Manteremos 'dist' aqui até você confirmar o nome correto da pasta
-      sourceFolder: '$(System.DefaultWorkingDirectory)/dist' 
-      contents: '**'
-      targetFolder: '$(Build.ArtifactStagingDirectory)/app-build' 
-      cleanTargetFolder: true
-      overwrite: true 
-    displayName: '4. Preparar Build (Staging)'
-
-  # Etapa 5: Copia os arquivos do Staging (local seguro) para a VM
-  - task: CopyFiles@2
-    inputs:
-      sourceFolder: '$(Build.ArtifactStagingDirectory)/app-build' 
-      contents: '**'
-      targetFolder: 'C:\deploy\varejo-facil'
-      cleanTargetFolder: true
-      overwrite: true 
-    displayName: '5. Copiar build para VM'
+      echo "Copiando build para pasta de deploy (C:\deploy\varejo-facil)"
+      
+      # 1. Cria o diretório de destino se não existir
+      if not exist "C:\deploy\varejo-facil" mkdir "C:\deploy\varejo-facil"
+      
+      # 2. Copia a pasta de build 'dist' (usando .\dist para garantir que o path seja relativo ao repo root)
+      # Adicionamos /I para assumir que o destino é um diretório e /C para continuar em caso de erro menor
+      xcopy .\dist C:\deploy\varejo-facil /E /Y /I /C
+    displayName: '3. Copiar build para VM (Script Robusto)'
 
   - script: |
       echo "Reiniciando app com PM2"
       pm2 delete varejo-facil --silent || true 
+      
+      # Garante que o PM2 inicie o serviço sem travar o pipeline
       pm2 start "cmd /c pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa" --name varejo-facil-service --interpreter none
       pm2 save --force
-    displayName: '6. Rodar app com PM2'
+    displayName: '4. Rodar app com PM2'
