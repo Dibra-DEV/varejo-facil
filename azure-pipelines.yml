@@ -10,22 +10,27 @@ steps:
   - task: NodeTool@0
     inputs:
       versionSpec: '20.x'
-    displayName: 'Instalar Node.js'
+    displayName: '1. Instalar Node.js'
 
   - script: |
       npm install
       npm run build
-    displayName: 'Build do projeto'
+      npm install -g pm2
+    displayName: '2. Build do projeto e Instalar PM2'
 
-  - script: |
-      echo "Copiando build para pasta de deploy"
-      if not exist "C:\deploy\varejo-facil" mkdir "C:\deploy\varejo-facil"
-      xcopy dist C:\deploy\varejo-facil /E /Y
-    displayName: 'Copiar build para VM'
+  - task: CopyFiles@2
+    inputs:
+      sourceFolder: '$(System.DefaultWorkingDirectory)/dist' 
+      contents: '**'
+      targetFolder: 'C:\deploy\varejo-facil'
+      cleanTargetFolder: true
+      overwrite: true 
+    displayName: '3. Copiar build para VM'
 
   - script: |
       echo "Reiniciando app com PM2"
-      pm2 delete varejo-facil || exit 0
-      pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil
+      pm2 delete varejo-facil --silent || true 
+      
+      pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
       pm2 save
-    displayName: 'Rodar app com PM2'
+    displayName: '4. Rodar app com PM2'
