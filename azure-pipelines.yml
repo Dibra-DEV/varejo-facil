@@ -20,39 +20,37 @@ steps:
       npm install -g pm2
     displayName: '2. Build do projeto e Instalar PM2'
 
-  # Etapa 3: Copia a pasta 'dist' (Build) para o diretório de Staging do Pipeline
+  # NOVA ETAPA: Diagnóstico para descobrir o nome real da pasta de build.
+  - script: |
+      echo "Conteúdo do Diretório de Trabalho Padrão ($(System.DefaultWorkingDirectory)): "
+      # O comando 'dir /b' no Windows lista apenas arquivos e pastas
+      dir /b
+    displayName: '3. DIAGNÓSTICO: Listar Arquivos pós-Build'
+
+  # Etapa 4: Copia a pasta de Build (assumindo 'dist' por enquanto) para o Staging
   - task: CopyFiles@2
     inputs:
-      # A pasta 'dist' é criada aqui
+      # Manteremos 'dist' aqui até você confirmar o nome correto da pasta
       sourceFolder: '$(System.DefaultWorkingDirectory)/dist' 
       contents: '**'
-      # Move para o diretório de artefatos temporário (Staging)
       targetFolder: '$(Build.ArtifactStagingDirectory)/app-build' 
       cleanTargetFolder: true
       overwrite: true 
-    displayName: '3. Preparar Build (Staging)'
+    displayName: '4. Preparar Build (Staging)'
 
-  # Etapa 4: Copia os arquivos do Staging (local seguro) para a VM
+  # Etapa 5: Copia os arquivos do Staging (local seguro) para a VM
   - task: CopyFiles@2
     inputs:
-      # Origem: Staging Directory
       sourceFolder: '$(Build.ArtifactStagingDirectory)/app-build' 
       contents: '**'
-      # Destino: Pasta de deploy na VM
       targetFolder: 'C:\deploy\varejo-facil'
       cleanTargetFolder: true
       overwrite: true 
-    displayName: '4. Copiar build para VM'
+    displayName: '5. Copiar build para VM'
 
   - script: |
       echo "Reiniciando app com PM2"
-      
-      # Tenta apagar o app anterior silenciosamente
       pm2 delete varejo-facil --silent || true 
-      
-      # CORREÇÃO PM2: Usa 'pm2 start' encapsulando 'pm2 serve' para evitar que o agente trave
       pm2 start "cmd /c pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa" --name varejo-facil-service --interpreter none
-      
-      # Salva a configuração
       pm2 save --force
-    displayName: '5. Rodar app com PM2 (Corrigido)'
+    displayName: '6. Rodar app com PM2'
