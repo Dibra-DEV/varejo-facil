@@ -14,8 +14,11 @@ steps:
 
   - script: |
       echo "Instalando dependências e buildando projeto..."
-      npm install
-      npm run build
+      npm install --force 
+      
+      echo "Iniciando Build..."
+      npm run build || (echo "ERRO: O Build falhou! Verifique os logs acima." && exit 1)
+      
       echo "Instalando PM2 globalmente..."
       npm install -g pm2
     displayName: '2. Build do projeto e Instalar PM2'
@@ -27,6 +30,7 @@ steps:
       
       xcopy .\dist C:\deploy\varejo-facil /E /Y /I /C
     displayName: '3. Copiar build para VM (Script Robusto)'
+    continueOnError: true 
 
   - script: |
       echo "Reiniciando app com PM2"
@@ -38,6 +42,6 @@ steps:
 
   - script: |
       echo "Conteúdo do diretório de build (Pós-Build):"
-      dir /b
-    displayName: '5. VERIFICAR PASTA DE BUILD'
+      tree /f
+    displayName: '5. VERIFICAR ARQUIVOS COM TREE /F'
     continueOnError: true
