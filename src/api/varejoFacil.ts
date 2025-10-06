@@ -1,3 +1,9 @@
+export interface CupomSubItem {
+  matnr2: string | null;
+  qte2: number | null;
+  und2: string | null;
+}
+
 export interface CupomItem {
   item: string | null;
   matnr: string | null;
@@ -6,6 +12,7 @@ export interface CupomItem {
   desconto: number | null;
   qte: number | null;
   total: number | null;
+  subItems?: CupomSubItem[];
 }
 
 export interface CupomFinalizadora {
@@ -103,14 +110,22 @@ export async function getVarejoFacilData(
     return text ? parseFloat(text) : null;
   };
 
-  const fichaTecnicaMap = new Map<string, { matnr2: string | null }>();
+  const subItemsMap = new Map<string, CupomSubItem[]>();
   Array.from(xmlDoc.getElementsByTagName("cupom_fichatecnica")).forEach(
     (fichaNode) => {
       const coo = getText(fichaNode, "COO");
-      const item = getText(fichaNode, "ITEM");
-      if (coo && item) {
-        const key = `${coo}-${item}`;
-        fichaTecnicaMap.set(key, { matnr2: getText(fichaNode, "MATNR2") });
+      const itemNum = getText(fichaNode, "ITEM")?.padStart(3, "0");
+
+      if (coo && itemNum) {
+        const key = `${coo}-${itemNum}`;
+        if (!subItemsMap.has(key)) {
+          subItemsMap.set(key, []);
+        }
+        subItemsMap.get(key)!.push({
+          matnr2: getText(fichaNode, "MATNR2"),
+          qte2: getFloat(fichaNode, "QTE2"),
+          und2: getText(fichaNode, "UND2"),
+        });
       }
     }
   );
@@ -119,34 +134,40 @@ export async function getVarejoFacilData(
   Array.from(xmlDoc.getElementsByTagName("cupom_item")).forEach((itemNode) => {
     const coo = getText(itemNode, "COO");
     const matnr = getText(itemNode, "MATNR");
+    const itemNum = getText(itemNode, "ITEM");
 
     if (coo && matnr) {
       if (!itemsMap.has(coo)) {
         itemsMap.set(coo, []);
       }
       const items = itemsMap.get(coo)!;
-      const existingItem = items.find((it) => it.matnr === matnr);
 
       const qte = getFloat(itemNode, "QTE") || 0;
       const total = getFloat(itemNode, "TOTAL") || 0;
       const desconto = getFloat(itemNode, "DESCONTO") || 0;
 
-      if (existingItem) {
+      const existingItem = items.find((it) => it.matnr === matnr);
+
+      const subItemKey = `${coo}-${itemNum?.padStart(3, "0")}`;
+      const itemSubItems = subItemsMap.get(subItemKey);
+
+      if (existingItem && !itemSubItems) {
         existingItem.qte = (existingItem.qte || 0) + qte;
         existingItem.total = (existingItem.total || 0) + total;
         existingItem.desconto = (existingItem.desconto || 0) + desconto;
       } else {
-        const itemNum = getText(itemNode, "ITEM");
-        const key = `${coo}-${itemNum}`;
-        const ficha = fichaTecnicaMap.get(key);
         items.push({
           item: itemNum,
           matnr: matnr,
-          matnr2: ficha?.matnr2 || null,
+          matnr2: null,
           preco: getFloat(itemNode, "PRECO"),
           desconto: desconto,
           qte: qte,
           total: total,
+          subItems:
+            matnr?.startsWith("4000") && itemSubItems?.length
+              ? itemSubItems
+              : undefined,
         });
       }
     }

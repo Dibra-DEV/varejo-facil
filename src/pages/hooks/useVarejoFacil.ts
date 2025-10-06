@@ -9,7 +9,7 @@ import {
 
 export type ExpandedDetails = {
   chave: string | null;
-  type: "items" | "finalizadoras" | null;
+  type: "items" | "finalizadoras" | "subitems" | "sublist" | null;
 };
 
 export const INITIAL_QUERY_PARAMS: QueryParams = {
@@ -85,7 +85,6 @@ export function useVarejoFacil() {
       const cuponsMap = new Map<string, Cupom>();
       const resumosAll: CupomResumo[] = [];
 
-      // Itera dia a dia sem pular
       let day = new Date(start);
       while (day <= end) {
         try {
@@ -166,7 +165,6 @@ export function useVarejoFacil() {
       const cuponsMap = new Map<string, Cupom>();
       const resumosAll: CupomResumo[] = [];
 
-      // calcular total de dias a processar
       let total = 0;
       {
         let tmp = new Date(start);
@@ -247,14 +245,15 @@ export function useVarejoFacil() {
   };
 
   const handleToggleDetails = (
-    cupomChave: string,
-    type: "items" | "finalizadoras"
+    key: string,
+    type: "items" | "finalizadoras" | "subitems" | "sublist"
   ) => {
     setExpandedDetails((prev) => {
-      if (prev.chave === cupomChave && prev.type === type) {
+      if (prev.chave === key && prev.type === type) {
         return { chave: null, type: null };
       }
-      return { chave: cupomChave, type };
+
+      return { chave: key, type };
     });
   };
 

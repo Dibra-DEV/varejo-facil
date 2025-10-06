@@ -50,13 +50,16 @@ export default function Dashboard() {
         return (aNum - bNum) * dir;
       });
     }
-    // coo
+
     return arr.sort((a, b) => {
       const aNum = a.coo ? parseInt(a.coo, 10) : 0;
       const bNum = b.coo ? parseInt(b.coo, 10) : 0;
       return (aNum - bNum) * dir;
     });
   }, [filteredData.filteredCupons, sortState]);
+
+  const hasSubitems = (cupom: (typeof sortedCupons)[number]) =>
+    cupom.items.some((item) => item.subItems?.length);
 
   const handleExport = () => {
     const { filteredCupons } = filteredData;
@@ -71,7 +74,6 @@ export default function Dashboard() {
       "Status",
       "Item #",
       "Material",
-      "Material 2",
       "Preço Item",
       "Desconto Item",
       "Qtd Item",
@@ -85,42 +87,79 @@ export default function Dashboard() {
     worksheetData.push(headers);
 
     filteredCupons.forEach((cupom) => {
-      const maxRows = Math.max(
-        cupom.items.length,
-        cupom.finalizadoras.length,
-        1
-      );
+      const baseRow: (string | number | null)[] = [
+        cupom.unidade || "",
+        cupom.coo || "",
+        formatDate(cupom.rzdata),
+        cupom.vlrtot,
+        cupom.chcfe || "",
+        cupom.cancelado ? "Cancelado" : "Válido",
+      ];
 
-      for (let i = 0; i < maxRows; i++) {
-        const item = cupom.items[i];
-        const finalizadora = cupom.finalizadoras[i];
+      const allDetailRows: (string | number | null)[][] = [];
+
+      cupom.items.forEach((item) => {
+        allDetailRows.push([
+          item.item,
+          item.matnr,
+          item.matnr2 || "",
+          item.preco,
+          item.desconto,
+          item.qte,
+          item.total,
+        ]);
+        if (item.subItems?.length) {
+          item.subItems.forEach((subItem) => {
+            allDetailRows.push([
+              `${item.item} - Sub`,
+              subItem.matnr2,
+              "",
+              "",
+              "",
+              subItem.qte2,
+              "",
+            ]);
+          });
+        }
+      });
+
+      cupom.finalizadoras.forEach((finalizadora) => {
+        allDetailRows.push([
+          "Pagamento",
+          finalizadora.pagid,
+          finalizadora.bandeira || "",
+          finalizadora.valor,
+          finalizadora.troco,
+          finalizadora.autorizacao || "",
+        ]);
+      });
+
+      const maxDetails = Math.max(allDetailRows.length, 1);
+
+      for (let i = 0; i < maxDetails; i++) {
         const row: (string | number | null)[] = [];
 
         if (i === 0) {
-          row.push(cupom.unidade || "");
-          row.push(cupom.coo || "");
-          row.push(formatDate(cupom.rzdata));
-          row.push(cupom.vlrtot);
-          row.push(cupom.chcfe || "");
-          row.push(cupom.cancelado ? "Cancelado" : "Válido");
+          row.push(...baseRow);
         } else {
           row.push("", "", "", "", "", "");
         }
 
-        row.push(item ? item.item : "");
-        row.push(item ? item.matnr : "");
-        row.push(item ? item.matnr2 || "" : "");
-        row.push(item ? item.preco : "");
-        row.push(item ? item.desconto : "");
-        row.push(item ? item.qte : "");
-        row.push(item ? item.total : "");
-
-        row.push(finalizadora ? finalizadora.pagid : "");
-        row.push(finalizadora ? finalizadora.bandeira || "" : "");
-        row.push(finalizadora ? finalizadora.valor : "");
-        row.push(finalizadora ? finalizadora.troco : "");
-        row.push(finalizadora ? finalizadora.autorizacao || "" : "");
-
+        const detailRow = allDetailRows[i] || [];
+        row.push(
+          detailRow[0] || "",
+          detailRow[1] || "",
+          detailRow[2] || "",
+          detailRow[3] || "",
+          detailRow[4] || "",
+          detailRow[5] || "",
+          detailRow[6] || "",
+          detailRow[7] || "",
+          detailRow[8] || "",
+          detailRow[9] || "",
+          detailRow[10] || "",
+          detailRow[11] || ""
+        );
         worksheetData.push(row);
       }
     });
@@ -130,6 +169,8 @@ export default function Dashboard() {
     XLSX.utils.book_append_sheet(wb, ws, "Cupons");
     XLSX.writeFile(wb, "relatorio_varejo_facil.xlsx");
   };
+
+  const COL_SPAN = 9;
 
   return (
     <div className="bg-gray-100 text-gray-800 min-h-screen p-4 sm:p-8 font-sans">
@@ -409,7 +450,7 @@ export default function Dashboard() {
                       </th>
                       <th
                         className="p-3 font-semibold text-gray-600 text-center"
-                        colSpan={2}
+                        colSpan={3}
                       >
                         Detalhes
                       </th>
@@ -450,6 +491,21 @@ export default function Dashboard() {
                             </button>
                           </td>
                           <td className="p-3 text-center">
+                            {hasSubitems(cupom) ? (
+                              <button
+                                onClick={() =>
+                                  handleToggleDetails(cupom.chcfe!, "sublist")
+                                }
+                                className="bg-purple-200 hover:bg-purple-300 text-purple-800 text-xs py-1 px-3 rounded-sm font-semibold"
+                                title="Mostrar materiais com subitens"
+                              >
+                                Subitens
+                              </button>
+                            ) : (
+                              <span className="text-gray-400 text-xs">--</span>
+                            )}
+                          </td>
+                          <td className="p-3 text-center">
                             <button
                               onClick={() =>
                                 handleToggleDetails(
@@ -465,7 +521,7 @@ export default function Dashboard() {
                         </tr>
                         {expandedDetails.chave === cupom.chcfe && (
                           <tr>
-                            <td colSpan={8} className="p-0">
+                            <td colSpan={COL_SPAN} className="p-0">
                               {expandedDetails.type === "items" && (
                                 <div className="bg-blue-50 p-4 border-l-4 border-blue-500">
                                   <h4 className="text-md font-bold mb-2 text-blue-700">
@@ -476,7 +532,6 @@ export default function Dashboard() {
                                       <thead className="bg-blue-100">
                                         <tr className="border-b border-blue-200">
                                           <th className="p-2">Material</th>
-                                          <th className="p-2">Material 2</th>
                                           <th className="p-2 text-right">
                                             Preço
                                           </th>
@@ -493,35 +548,190 @@ export default function Dashboard() {
                                       </thead>
                                       <tbody>
                                         {cupom.items.map((item, i) => (
-                                          <tr
-                                            key={i}
-                                            className="border-b border-blue-200 last:border-b-0"
-                                          >
-                                            <td className="p-2">
-                                              {item.matnr}
-                                            </td>
-                                            <td className="p-2">
-                                              {item.matnr2 || "-"}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                              {formatCurrency(item.preco)}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                              {formatCurrency(item.desconto)}
-                                            </td>
-                                            <td className="p-2 text-right">
-                                              {item.qte}
-                                            </td>
-                                            <td className="p-2 text-right font-semibold">
-                                              {formatCurrency(item.total)}
-                                            </td>
-                                          </tr>
+                                          <Fragment key={i}>
+                                            <tr
+                                              className={`border-b border-blue-200 last:border-b-0 ${
+                                                item.subItems?.length
+                                                  ? "bg-blue-200 hover:bg-blue-300"
+                                                  : "hover:bg-blue-100"
+                                              }`}
+                                            >
+                                              <td className="p-2">
+                                                <div className="flex items-center justify-between">
+                                                  {item.matnr}
+                                                  {item.subItems &&
+                                                    item.subItems.length >
+                                                      0 && (
+                                                      <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                          handleToggleDetails(
+                                                            `${cupom.chcfe!}-${
+                                                              item.item
+                                                            }`,
+                                                            "subitems"
+                                                          )
+                                                        }
+                                                        className="ml-2 text-blue-800 hover:text-blue-900 focus:outline-none"
+                                                        title={`Mostrar ${item.subItems.length} subitens`}
+                                                      >
+                                                        {expandedDetails.chave ===
+                                                          `${cupom.chcfe!}-${
+                                                            item.item
+                                                          }` &&
+                                                        expandedDetails.type ===
+                                                          "subitems"
+                                                          ? "▼"
+                                                          : "►"}{" "}
+                                                        ({item.subItems.length})
+                                                      </button>
+                                                    )}
+                                                </div>
+                                              </td>
+                                              <td className="p-2 text-right">
+                                                {formatCurrency(item.preco)}
+                                              </td>
+                                              <td className="p-2 text-right">
+                                                {formatCurrency(item.desconto)}
+                                              </td>
+                                              <td className="p-2 text-right">
+                                                {item.qte}
+                                              </td>
+                                              <td className="p-2 text-right font-semibold">
+                                                {formatCurrency(item.total)}
+                                              </td>
+                                            </tr>
+                                            {item.subItems &&
+                                              expandedDetails.chave ===
+                                                `${cupom.chcfe!}-${
+                                                  item.item
+                                                }` &&
+                                              expandedDetails.type ===
+                                                "subitems" && (
+                                                <tr>
+                                                  <td
+                                                    colSpan={6}
+                                                    className="p-0"
+                                                  >
+                                                    <div className="bg-blue-100/50 p-2 border-t border-blue-300">
+                                                      <h5 className="text-sm font-semibold mb-1 text-blue-800">
+                                                        Componentes de **
+                                                        {item.matnr}** (Item{" "}
+                                                        {item.item}):
+                                                      </h5>
+                                                      <ul className="list-disc list-inside ml-2">
+                                                        {item.subItems.map(
+                                                          (subItem, j) => (
+                                                            <li
+                                                              key={j}
+                                                              className="text-xs text-gray-700 font-mono"
+                                                            >
+                                                              {subItem.matnr2} |
+                                                              Qtd:{" "}
+                                                              {subItem.qte2}{" "}
+                                                              {subItem.und2 ||
+                                                                "UN"}
+                                                            </li>
+                                                          )
+                                                        )}
+                                                      </ul>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              )}
+                                          </Fragment>
                                         ))}
                                       </tbody>
                                     </table>
                                   </div>
                                 </div>
                               )}
+
+                              {expandedDetails.type === "sublist" && (
+                                <div className="bg-purple-50 p-4 border-l-4 border-purple-500">
+                                  <h4 className="text-md font-bold mb-2 text-purple-700">
+                                    Itens do Cupom com Componentes
+                                  </h4>
+                                  <div className="overflow-y-auto max-h-60">
+                                    <table className="w-full text-xs">
+                                      <thead className="bg-purple-100">
+                                        <tr className="border-b border-purple-200">
+                                          <th className="p-2">
+                                            Material Principal
+                                          </th>
+                                          <th className="p-2 text-right">
+                                            Qtd Principal
+                                          </th>
+                                          <th className="p-2">Componente</th>
+                                          <th className="p-2 text-right">
+                                            Qtd
+                                          </th>
+                                          <th className="p-2">Und</th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {cupom.items
+                                          .filter(
+                                            (item) => item.subItems?.length
+                                          )
+                                          .map((item, i) => (
+                                            <Fragment key={i}>
+                                              <tr className="border-t border-purple-300">
+                                                <td
+                                                  className="p-2 font-mono text-purple-800 font-semibold"
+                                                  rowSpan={
+                                                    (item.subItems?.length ||
+                                                      0) + 1
+                                                  }
+                                                >
+                                                  {item.matnr} (Item {item.item}
+                                                  )
+                                                </td>
+                                                <td
+                                                  className="p-2 text-right"
+                                                  rowSpan={
+                                                    (item.subItems?.length ||
+                                                      0) + 1
+                                                  }
+                                                >
+                                                  {item.qte}
+                                                </td>
+                                              </tr>
+
+                                              {item.subItems?.map(
+                                                (subItem, j) => (
+                                                  <tr
+                                                    key={`${i}-${j}`}
+                                                    className="border-b border-purple-200 last:border-b-0 hover:bg-purple-200"
+                                                  >
+                                                    <td className="p-2 font-mono">
+                                                      {subItem.matnr2}
+                                                    </td>
+                                                    <td className="p-2 text-right">
+                                                      {subItem.qte2}
+                                                    </td>
+                                                    <td className="p-2">
+                                                      {subItem.und2 || "UN"}
+                                                    </td>
+                                                  </tr>
+                                                )
+                                              )}
+                                            </Fragment>
+                                          ))}
+                                      </tbody>
+                                    </table>
+                                    {cupom.items.filter(
+                                      (item) => item.subItems?.length
+                                    ).length === 0 && (
+                                      <p className="text-center text-purple-700 py-2">
+                                        Nenhum item com subcomponentes
+                                        encontrado.
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
                               {expandedDetails.type === "finalizadoras" && (
                                 <div className="bg-green-50 p-4 border-l-4 border-green-500">
                                   <h4 className="text-md font-bold mb-2 text-green-700">
@@ -587,7 +797,7 @@ export default function Dashboard() {
                         <td className="p-3 font-mono text-right">
                           {formatCurrency(totalValorCupons)}
                         </td>
-                        <td colSpan={4} className="p-3"></td>
+                        <td colSpan={5} className="p-3"></td>
                       </tr>
                     </tfoot>
                   )}
