@@ -61,7 +61,8 @@ export interface QueryParams {
 export async function getVarejoFacilData(
   params: QueryParams
 ): Promise<ApiResponse> {
-  const apiUrl = "/TmConsultoria/VarejoFacil.asmx";
+  const apiUrl =
+    import.meta.env.VITE_API_URL || "/TmConsultoria/VarejoFacil.asmx";
   const soapAction = "http://tempuri.org/ConsultaEcf";
 
   const soapRequest = `
