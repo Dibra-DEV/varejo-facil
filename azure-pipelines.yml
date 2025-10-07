@@ -13,11 +13,14 @@ steps:
     displayName: '1. Instalar Node.js (20.x)'
 
   - script: |
-      echo "Instalando dependências e buildando projeto..."
-      npm install --force 
+      echo "Instalando dependências..."
+      npm install --force
       
       echo "Iniciando Build..."
-      npm run build || (echo "ERRO: O Build falhou! Verifique os logs acima." && exit 1)
+      npm run build
+      
+      echo "Verificando se a pasta 'dist' foi criada:"
+      dir dist
       
       echo "Instalando PM2 globalmente..."
       npm install -g pm2
@@ -25,23 +28,27 @@ steps:
 
   - script: |
       echo "Copiando build para pasta de deploy (C:\deploy\varejo-facil)"
-      
-      if not exist "C:\deploy\varejo-facil" mkdir "C:\deploy\varejo-facil"
-      
-      xcopy .\dist C:\deploy\varejo-facil /E /Y /I /C
-    displayName: '3. Copiar build para VM (Script Robusto)'
-    continueOnError: true 
+      REM Robocopy é mais robusto que xcopy para pipelines.
+      REM /E copia subdiretórios, incluindo os vazios.
+      REM /PURGE deleta arquivos no destino que não existem mais na origem.
+      robocopy "$(Build.SourcesDirectory)\dist" "C:\deploy\varejo-facil" /E /PURGE
+    displayName: '3. Copiar build para VM (com Robocopy)'
 
   - script: |
       echo "Reiniciando app com PM2"
-      pm2 delete varejo-facil --silent || true 
       
-      pm2 start "cmd /c pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa" --name varejo-facil-service --interpreter none
-      pm2 save --force
+      REM Usar 'npx' garante que o executável do pm2 será encontrado.
+      npx pm2 delete varejo-facil || echo "Aplicação não encontrada, iniciando pela primeira vez."
+      
+      echo "Iniciando o servidor para a SPA..."
+      npx pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
+      
+      echo "Salvando a lista de processos do PM2..."
+      npx pm2 save --force
     displayName: '4. Rodar app com PM2'
 
   - script: |
-      echo "Conteúdo do diretório de build (Pós-Build):"
-      tree /f
-    displayName: '5. VERIFICAR ARQUIVOS COM TREE /F'
-    continueOnError: true
+      echo "Verificando status dos processos PM2:"
+      npx pm2 list
+    displayName: '5. VERIFICAR STATUS DO PM2'
+    continueOnError: "true"
