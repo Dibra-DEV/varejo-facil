@@ -50,4 +50,4 @@ steps:
       echo "Verificando status dos processos PM2:"
       npx pm2 list
     displayName: '5. VERIFICAR STATUS DO PM2'
-    continueOnError: true
+    continueOnError: "true"
