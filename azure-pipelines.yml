@@ -7,41 +7,47 @@ pool:
   name: vm-windows
 
 steps:
-  - task: NodeTool@0
-    inputs:
-      versionSpec: '20.x'
-    displayName: '1. Instalar Node.js (20.x)'
+- task: NodeTool@0
+  inputs:
+    versionSpec: '20.x'
+  displayName: '1. Instalar Node.js (20.x)'
 
-  - script: |
-      echo "Instalando dependências..."
-      npm install --force
-      
-      echo "Iniciando Build..."
-      npm run build
-      
-      echo "Verificando os arquivos e pastas criados na raiz do projeto:"
-      dir dist
-    displayName: '2. Build do projeto'
+- script: |
+    echo "Instalando dependências..."
+    npm install --force
+    
+    echo "Iniciando Build..."
+    npm run build
+    
+    echo "Verificando se a pasta 'dist' foi criada na raiz do projeto:"
+    dir dist
+    
+    echo "Se a listagem acima estiver vazia ou der erro, o build falhou."
+    if not exist dist (
+      echo "##[error]ERRO CRÍTICO: A pasta 'dist' não foi criada pelo comando 'npm run build'."
+      exit 1
+    )
+  displayName: '2. Build do Projeto e Verificação'
 
-  - task: CopyFiles@2
-    displayName: '3. Copiar build para VM'
-    inputs:
-      SourceFolder: '$(Build.SourcesDirectory)\dist'
-      Contents: '**'
-      TargetFolder: 'C:\deploy\varejo-facil'
-      CleanTargetFolder: true
-      OverWrite: true
+- task: CopyFiles@2
+  displayName: '3. Copiar Build para VM'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)\dist'
+    Contents: '**'
+    TargetFolder: 'C:\deploy\varejo-facil'
+    CleanTargetFolder: true
+    OverWrite: true
 
-  - script: |
-      echo "Instalando PM2 e reiniciando a aplicação..."
-      npm install -g pm2
-      npx pm2 delete varejo-facil || echo "Aplicação não encontrada, iniciando pela primeira vez."
-      npx pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
-      npx pm2 save --force
-    displayName: '4. Instalar PM2 e Rodar App'
+- script: |
+    echo "Instalando PM2 e reiniciando a aplicação..."
+    npm install -g pm2
+    npx pm2 delete varejo-facil || echo "Aplicação não encontrada."
+    npx pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
+    npx pm2 save --force
+  displayName: '4. Instalar PM2 e Rodar App'
 
-  - script: |
-      echo "Verificando status dos processos PM2:"
-      npx pm2 list
-    displayName: '5. VERIFICAR STATUS DO PM2'
-    continueOnError: "true"
+- script: |
+    echo "Verificando status dos processos PM2:"
+    npx pm2 list
+  displayName: '5. VERIFICAR STATUS DO PM2'
+  continueOnError: "true"
