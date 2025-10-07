@@ -7,62 +7,34 @@ pool:
   name: vm-windows
 
 steps:
+
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
-  displayName: '1. Instalar Node.js (20.x)'
+  displayName: '1. Instalar Node.js'
+
+- script: npm install --force
+  displayName: '2. Instalar Dependências'
+  
+- script: npm run build
+  displayName: '3. Executar Build do Projeto'
+
+- task: CopyFiles@2
+  displayName: '4. Copiar Arquivos de Build'
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)\dist'
+    Contents: '**'
+    TargetFolder: 'C:\deploy\varejo-facil'
+    CleanTargetFolder: true
+    OverWrite: true
 
 - script: |
-    echo "📦 Instalando dependências..."
-    npm install --force
-
-    echo "🏗️ Iniciando build..."
-    npm run build
-
-    echo "🧩 Verificando se a pasta 'dist' foi criada na raiz do projeto:"
-    dir dist
-
-    echo "🔍 Se a listagem acima estiver vazia ou der erro, o build falhou."
-    if not exist dist (
-      echo "##[error]ERRO CRÍTICO: A pasta 'dist' não foi criada pelo comando 'npm run build'."
-      exit 1
-    )
-  displayName: '2. Build do Projeto e Verificação'
-
-- powershell: |
-    Write-Host "🚚 Iniciando cópia da pasta 'dist' para C:\deploy\varejo-facil..."
-
-    # Mostrar estrutura atual (útil pra debug)
-    Write-Host "📁 Estrutura de diretórios onde o build rodou:"
-    Get-ChildItem "$(Build.SourcesDirectory)" -Recurse -Directory | Where-Object { $_.Name -eq "dist" }
-
-    # Limpar o diretório de destino, se existir
-    if (Test-Path "C:\deploy\varejo-facil") {
-      Write-Host "🧹 Limpando diretório antigo em C:\deploy\varejo-facil..."
-      Remove-Item -Recurse -Force "C:\deploy\varejo-facil"
-    }
-
-    # Criar o novo diretório de destino
-    Write-Host "📂 Criando diretório de destino..."
-    New-Item -ItemType Directory -Force -Path "C:\deploy\varejo-facil" | Out-Null
-
-    # Copiar o conteúdo do build
-    Write-Host "📤 Copiando arquivos do build..."
-    Copy-Item "$(Build.SourcesDirectory)\dist\*" "C:\deploy\varejo-facil" -Recurse -Force -ErrorAction Stop
-
-    Write-Host "✅ Build copiado com sucesso para C:\deploy\varejo-facil"
-  displayName: '3. Copiar Build Corrigido para VM (PowerShell)'
-
-- script: |
-    echo "⚙️ Instalando PM2 e iniciando aplicação..."
     npm install -g pm2
     npx pm2 delete varejo-facil || echo "Aplicação não encontrada."
     npx pm2 serve "C:\deploy\varejo-facil" 3000 --name varejo-facil --spa
     npx pm2 save --force
-  displayName: '4. Instalar PM2 e Rodar App'
+  displayName: '5. Instalar PM2 e Rodar App'
 
-- script: |
-    echo "🧭 Verificando status dos processos PM2..."
-    npx pm2 list
-  displayName: '5. Verificar Status do PM2'
+- script: npx pm2 list
+  displayName: '6. Verificar Status do PM2'
   continueOnError: "true"
