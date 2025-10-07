@@ -20,31 +20,25 @@ steps:
       npm run build
       
       echo "Verificando os arquivos e pastas criados na raiz do projeto:"
-      dir
-      
-      echo "Instalando PM2 globalmente..."
+      dir dist
+    displayName: '2. Build do projeto'
+
+  - task: CopyFiles@2
+    displayName: '3. Copiar build para VM'
+    inputs:
+      SourceFolder: '$(Build.SourcesDirectory)\dist'
+      Contents: '**'
+      TargetFolder: 'C:\deploy\varejo-facil'
+      CleanTargetFolder: true
+      OverWrite: true
+
+  - script: |
+      echo "Instalando PM2 e reiniciando a aplicação..."
       npm install -g pm2
-    displayName: '2. Build do projeto e Instalar PM2'
-
-  - script: |
-      echo "Copiando build para pasta de deploy (C:\deploy\varejo-facil)"
-      
-      REM =====================================================================
-      REM IMPORTANTE: Verifique o log do passo 2. Se a pasta de build não for 'dist',
-      REM substitua 'dist' no comando abaixo pelo nome correto da pasta.
-      REM Exemplo: robocopy "$(Build.SourcesDirectory)\build" ...
-      REM =====================================================================
-      robocopy "$(Build.SourcesDirectory)\dist" "C:\deploy\varejo-facil" /E /PURGE
-    displayName: '3. Copiar build para VM (com Robocopy)'
-
-  - script: |
-      echo "Reiniciando app com PM2"
       npx pm2 delete varejo-facil || echo "Aplicação não encontrada, iniciando pela primeira vez."
-      echo "Iniciando o servidor para a SPA..."
       npx pm2 serve C:\deploy\varejo-facil 3000 --name varejo-facil --spa
-      echo "Salvando a lista de processos do PM2..."
       npx pm2 save --force
-    displayName: '4. Rodar app com PM2'
+    displayName: '4. Instalar PM2 e Rodar App'
 
   - script: |
       echo "Verificando status dos processos PM2:"
