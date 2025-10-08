@@ -27,14 +27,3 @@ steps:
     TargetFolder: 'C:\app\varejo-facil'
     CleanTargetFolder: true
     OverWrite: true
-
-- script: |
-    npm install -g pm2
-    npx pm2 delete varejo-facil || echo "Aplicação não encontrada."
-    npx pm2 serve "C:\app\varejo-facil" 3000 --name varejo-facil --spa
-    npx pm2 save --force
-  displayName: '5. Instalar PM2 e Rodar App'
-
-- script: npx pm2 list
-  displayName: '6. Verificar Status do PM2'
-  continueOnError: "true"
