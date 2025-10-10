@@ -5,7 +5,7 @@ import {
   type Cupom,
   type CupomResumo,
   type QueryParams,
-} from "../../api/varejoFacil";
+} from "../../../../api";
 
 export type ExpandedDetails = {
   chave: string | null;

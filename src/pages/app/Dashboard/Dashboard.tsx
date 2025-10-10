@@ -1,9 +1,22 @@
 import { Fragment, useMemo, useState } from "react";
-import { useVarejoFacil } from "./hooks/useVarejoFacil";
-import { formatCurrency, formatDate } from "../utils/formatters";
+import { signOut } from "firebase/auth";
 import * as XLSX from "xlsx";
+import { auth } from "../../../firebase";
+import { useAuth } from "../../../domain";
+import { useVarejoFacil } from "./hooks/useVarejoFacil";
+import { formatCurrency, formatDate } from "../../../utils";
 
 export default function Dashboard() {
+  const { user } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+  };
+
   const {
     state: {
       expandedDetails,
@@ -175,29 +188,53 @@ export default function Dashboard() {
   return (
     <div className="bg-gray-100 text-gray-800 min-h-screen p-4 sm:p-8 font-sans">
       <div className="w-full max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-6">
+        <header className="flex justify-between items-center mb-6 flex-wrap gap-4">
           <h1 className="text-3xl font-bold text-blue-600">
             Painel de Análise - Varejo Fácil
           </h1>
-          <button
-            onClick={handleReload}
-            title="Recarregar e limpar filtros"
-            className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-sm flex items-center"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5 mr-2"
-              viewBox="0 0 20 20"
-              fill="currentColor"
+          <div className="flex items-center gap-4">
+            {user && (
+              <span className="text-sm text-gray-600">{user.email}</span>
+            )}
+            <button
+              onClick={handleReload}
+              title="Recarregar e limpar filtros"
+              className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-sm flex items-center"
             >
-              <path
-                fillRule="evenodd"
-                d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.101A1 1 0 0116 8.375v.002a1 1 0 01-1.732.707 5.002 5.002 0 00-8.536-1.482V10a1 1 0 01-2 0V3a1 1 0 011-1zm12 16a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.899-2.101A1 1 0 014 9.625v-.002a1 1 0 011.732-.707 5.002 5.002 0 008.536 1.482V14a1 1 0 012 0v5a1 1 0 01-1 1z"
-                clipRule="evenodd"
-              />
-            </svg>
-            Recarregar
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.101A1 1 0 0116 8.375v.002a1 1 0 01-1.732.707 5.002 5.002 0 00-8.536-1.482V10a1 1 0 01-2 0V3a1 1 0 011-1zm12 16a1 1 0 01-1-1v-2.101a7.002 7.002 0 01-11.899-2.101A1 1 0 014 9.625v-.002a1 1 0 011.732-.707 5.002 5.002 0 008.536 1.482V14a1 1 0 012 0v5a1 1 0 01-1 1z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Recarregar
+            </button>
+            <button
+              onClick={handleLogout}
+              title="Sair do sistema"
+              className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-sm flex items-center"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 mr-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              Sair
+            </button>
+          </div>
         </header>
 
         <div className="bg-white p-4 rounded-sm border border-gray-200 mb-6 shadow-sm">
