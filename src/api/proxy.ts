@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-const API_URL = "http://38.0.0.57/TmConsultoria/VarejoFacil.asmx";
+const API_URL = process.env.BACKEND_API_URL;
 const SOAP_ACTION = "http://tempuri.org/ConsultaEcf";
 
 export default async function handler(
@@ -11,9 +11,14 @@ export default async function handler(
     return response.status(405).send("Method Not Allowed");
   }
 
+  if (!API_URL) {
+    return response.status(500).json({
+      message: "URL da API de backend não configurada no ambiente da Vercel.",
+    });
+  }
+
   try {
     const { dataInicial, dataFinal, estabelecimento } = request.body;
-
     const soapRequest = `
       <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
         <soapenv:Header/>
@@ -43,7 +48,6 @@ export default async function handler(
     }
 
     const xmlText = await apiRes.text();
-
     response.setHeader("Content-Type", "text/xml");
     response.status(200).send(xmlText);
   } catch (error: any) {
