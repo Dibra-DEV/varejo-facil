@@ -1,17 +1,15 @@
 import { Fragment, useMemo, useState } from "react";
-import { signOut } from "firebase/auth";
 import * as XLSX from "xlsx";
-import { auth } from "../../../firebase";
 import { useAuth } from "../../../domain";
 import { useVarejoFacil } from "./hooks/useVarejoFacil";
 import { formatCurrency, formatDate } from "../../../utils";
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const handleLogout = async () => {
     try {
-      await signOut(auth);
+      await logout();
     } catch (error) {
       console.error("Erro ao fazer logout:", error);
     }

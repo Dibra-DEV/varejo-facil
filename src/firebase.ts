@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCV6Du3AOwcISPygaJ5ZpLWVLLwHhWdUOE",
@@ -13,3 +14,11 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+const appUrl = import.meta.env.VITE_APP_URL || "http://localhost:5173";
+
+export const actionCodeSettings = {
+  url: `${appUrl}/login`,
+  handleCodeInApp: true,
+};
