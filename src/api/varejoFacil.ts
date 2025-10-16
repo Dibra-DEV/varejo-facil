@@ -61,19 +61,39 @@ export interface QueryParams {
 export async function getVarejoFacilData(
   params: QueryParams
 ): Promise<ApiResponse> {
-  const apiUrl = "/api/proxy";
+  const apiUrl = import.meta.env.DEV
+    ? "/TmConsultoria/VarejoFacil.asmx"
+    : import.meta.env.VITE_API_URL;
+
+  const soapAction = "http://tempuri.org/ConsultaEcf";
+
+  const soapRequest = `
+    <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:tem="http://tempuri.org/">
+      <soapenv:Header/>
+      <soapenv:Body>
+        <tem:ConsultaEcf>
+          <tem:ConsultaEcfRequest>
+            <tem:dataInicial>${params.dataInicial}</tem:dataInicial>
+            <tem:dataFinal>${params.dataFinal}</tem:dataFinal>
+            <tem:estabelecimento>${params.estabelecimento}</tem:estabelecimento>
+          </tem:ConsultaEcfRequest>
+        </tem:ConsultaEcf>
+      </soapenv:Body>
+    </soapenv:Envelope>
+  `;
 
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "text/xml; charset=utf-8",
+      SOAPAction: soapAction,
     },
-    body: JSON.stringify(params),
+    body: soapRequest,
   });
 
   if (!response.ok) {
     throw new Error(
-      `Erro na requisição ao proxy: ${response.status} ${response.statusText}`
+      `Erro na requisição: ${response.status} ${response.statusText}`
     );
   }
 
@@ -83,7 +103,7 @@ export async function getVarejoFacilData(
 
   const errorNode = xmlDoc.querySelector("parsererror");
   if (errorNode) {
-    throw new Error("A resposta do proxy não é um XML válido.");
+    throw new Error("A resposta da API não é um XML válido.");
   }
 
   const getText = (element: Element, tagName: string) =>

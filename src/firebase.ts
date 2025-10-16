@@ -16,7 +16,9 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
-const appUrl = import.meta.env.VITE_APP_URL || "http://localhost:5173";
+const appUrl = import.meta.env.DEV
+  ? "http://localhost:5173"
+  : import.meta.env.VITE_APP_URL;
 
 export const actionCodeSettings = {
   url: `${appUrl}/login`,
